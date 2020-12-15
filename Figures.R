@@ -659,9 +659,9 @@ sum(alluniqprobes %in% rownames(alltumor)) #14719
 sum(comprobes %in% rownames(alltumor)) #33733
 tumortype0=tumortype
 tumortype=factor(tumortype,levels = Cancertypes)
-allcolors=c("red","blue","darkorchid1","limegreen","goldenrod1","black","darkseagreen","darkcyan","darkseagreen1")
+allcolors=c("red","blue","darkorchid1","limegreen","goldenrod1","black","brown4","darkseagreen","darkseagreen1")
 #allcolors=c("red","blue","darkorchid1","limegreen","black","darkcyan","goldenrod1","darkseagreen","darkseagreen1")
-plot.pca=function(dat=alltumor,probes=comprobes,types=tumortype,yinc=1.2,pc1=1,pc2=2,main="",prefix=NULL,opt="beta")
+plot.pca=function(dat=allTCGAdat,probes=comprobes,types=alltype,yinc=1.2,pc1=1,pc2=2,main="",prefix=NULL,opt="beta")
 {
   types=factor(types,levels = unique(types))
   dat=dat[rownames(dat) %in% probes,]
@@ -701,10 +701,12 @@ plot.pca=function(dat=alltumor,probes=comprobes,types=tumortype,yinc=1.2,pc1=1,p
   xmax=max(pcadat[,pc1])
   ymin=min(pcadat[,pc2])
   ymax=max(pcadat[,pc2])*yinc
-  plot(pcadat[,pc1],pcadat[,pc2],col=alpha(allcolors[types],0.4),cex.axis=1.5,cex.lab=1.5,xlim=c(xmin-0.05*(xmax-xmin),xmax+0.05*(xmax-xmin)),
+  pch=1:length(unique(types))
+  pch=pch[types]
+  plot(pcadat[,pc1],pcadat[,pc2],col=alpha(allcolors[types],0.4),pch=pch,cex.axis=1.5,cex.lab=1.5,xlim=c(xmin-0.05*(xmax-xmin),xmax+0.05*(xmax-xmin)),
        ylim=c(ymin-0.05*(ymax-ymin),ymax+0.2*(ymax-ymin)),xlab=paste0("PC",pc1," (",round(expl_var[pc1]*100),"%)"),ylab=paste0("PC",pc2," (",round(expl_var[pc2]*100),"%)"),main=main,bty='l')
   #text(x=pcadat[,1],y=pcadat[,2],rownames(pcadat),col=colors[clinicaltable$`Platium response`],cex=1)
-  legend("topleft",legend=c(unique(as.character(types))),col=allcolors[1:length(unique(types))],pch=1,cex=1,bty = "n",ncol=3)
+  legend("topleft",legend=c(unique(as.character(types))),col=allcolors[1:length(unique(types))],pch=unique(as.numeric(types)),cex=1,bty = "n",ncol=2)
 }
 png(paste0(resfolder,"Allcancers_ALLsig_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
@@ -804,7 +806,7 @@ dev.off()
 # dev.off()
 
 #https://towardsdatascience.com/how-to-tune-hyperparameters-of-tsne-7c0596a18868
-plot.tsne=function(dat=alltumor,probes=comprobes,types=tumortype,yinc=1.2,pc1=1,pc2=2,main="",opt="beta")
+plot.tsne=function(dat=allTCGAdat,probes=comprobes,types=alltype,yinc=1.2,pc1=1,pc2=2,main="",opt="beta")
 {
   types=factor(types,levels = unique(types))
   dat=dat[rownames(dat) %in% probes,]
@@ -845,10 +847,12 @@ plot.tsne=function(dat=alltumor,probes=comprobes,types=tumortype,yinc=1.2,pc1=1,
   ymin=min(tsnedat[,pc2])
   ymax=max(tsnedat[,pc2])*yinc
   par(mar=c(5,5,2,1))
-  plot(tsnedat[,pc1],tsnedat[,pc2],col=alpha(allcolors[types],0.4),cex.axis=1.5,cex.lab=1.5,xlim=c(xmin-0.05*(xmax-xmin),xmax+0.05*(xmax-xmin)),
+  pch=1:length(unique(types))
+  pch=pch[types]
+  plot(tsnedat[,pc1],tsnedat[,pc2],col=alpha(allcolors[types],0.4),pch=pch,cex.axis=1.5,cex.lab=1.5,xlim=c(xmin-0.05*(xmax-xmin),xmax+0.05*(xmax-xmin)),
        ylim=c(ymin-0.05*(ymax-ymin),ymax+0.2*(ymax-ymin)),xlab=paste0("TSNE",pc1),ylab=paste0("TSNE",pc2),main=main,bty='l')
   #legend("topleft",legend=c(Cancertypes),col=allcolors[1:length(Cancertypes)],pch=1,cex=1,bty = "n",ncol=3)
-  legend("topleft",legend=c(unique(as.character(types))),col=allcolors[1:length(unique(types))],pch=1,cex=1,bty = "n",ncol=3)
+  legend("topleft",legend=c(unique(as.character(types))),col=allcolors[1:length(unique(types))],pch=unique(as.numeric(types)),cex=1,bty = "n",ncol=3)
 }
 png(paste0(resfolder,"Allcancers_ALLsig_TSNE.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
@@ -1324,7 +1328,7 @@ listcolor_cancertype=list(Type=listcolor_cancertype)
 drawheatmap=function(mat=t(TCGAtraindat[,colnames(TCGAtraindat) %in% selectprobes1]), cluster=tumortype,
                      showrowname=F)
 {
-
+  
   # mat=t(scale(t(mat)))
   # mat[mat < -2]=-2
   # mat[mat > 2]=2
