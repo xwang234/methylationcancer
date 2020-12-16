@@ -657,6 +657,11 @@ for (i in 1:length(Cancertypes))
 all(comprobes %in% rownames(alltumor)) #F
 sum(alluniqprobes %in% rownames(alltumor)) #14719
 sum(comprobes %in% rownames(alltumor)) #33733
+tmp=rowMeans(alltumor)
+idx=which(is.na(tmp))
+length(idx) #8404, remove probes with missing values (some may correlated to specific cancer)
+alltumor=alltumor[-idx,]
+sum(comprobes %in% rownames(alltumor)) #32788
 tumortype0=tumortype
 tumortype=factor(tumortype,levels = Cancertypes)
 allcolors=c("red","blue","darkorchid1","limegreen","goldenrod1","black","brown4","darkseagreen","darkseagreen1")
@@ -924,28 +929,7 @@ y=droplevels(y)
 #Training data
 TCGAtraindat=t(x)
 
-#form model matrix
-# formula <- as.formula(y ~ .)
-# TCGAtraindat1=cbind.data.frame(TCGAtraindat[,1:10],y)
-# X = model.matrix(formula, TCGAtraindat1)
-# X=cbind(X,TCGAtraindat[,11:ncol(TCGAtraindat)])
-# Sys.time()
-# cvfit=cv.glmnet(X[,1:100], y, family="multinomial", type.multinomial = "grouped", standardize=T,parallel = T,nfolds=10)
-# Sys.time()
-#pick 250 samples from each cancer to save time
-# y1=as.character(y)
-# tmp=unique(y1)
-# idx=NULL
-# for (s in tmp)
-# {
-#   idx1=which(y1==s)
-#   idx=c(idx,idx1[1:250])
-# }
-# x=x[,idx]
-# y=y[idx]
-# fit = glmnet(t(x), y, family = "multinomial", type.multinomial = "grouped")
-#predict(mod.glmnet, newx = matrix(meansetosa[2:3], nrow=1), type = "response")
-# plot(fit, xvar = "lambda", label = TRUE, type.coef = "2norm")
+
 #remember to set #export OMP_NUM_THREADS=1 when use parallel
 require(doMC)
 registerDoMC(cores=12)
@@ -954,10 +938,11 @@ Sys.time()
 # library(glmnetUtils)
 
 #Use standardize=T will select probes also with small beta values 
-cvfit=cv.glmnet(TCGAtraindat, y, family="multinomial", type.multinomial = "grouped", standardize=T,parallel = T,nfolds=10, trace.it=1)
+cvfit=cv.glmnet(TCGAtraindat, y, family="multinomial", type.multinomial = "grouped", standardize=F,parallel = T,nfolds=10, trace.it=1)
 #Or try without stand
 #cvfit=cv.glmnet(TCGAtraindat, y, family="multinomial", type.multinomial = "grouped", standardize=F,parallel = T,nfolds=10, trace.it=1)
 plot(cvfit)
+save(cvfit,file="result/cvfit.RData")
 Sys.time()
 # # use customized lambda,add small lambda, slow
 # lambda=10^seq(0,-5,length=100)
@@ -970,8 +955,8 @@ Sys.time()
 # save(cvfit,file="result/cvfit20_stand.RData")
 # plot(cvfit)
 # dev.off()
-lambda.best=cvfit$lambda.min #186 probes, if without using stand in cv.glmnet it selected 146 probes, 54 overlaps
-#lambda.best=cvfit$lambda.1se #169 probes
+lambda.best=cvfit$lambda.min #147 probes, 127 overlaps with 1se rule
+#lambda.best=cvfit$lambda.1se #133 probes
 
 glmcoeff1=coef(cvfit,s=lambda.best)[1]
 idx=glmcoeff1$`TCGA-PRAD`@i
@@ -1016,16 +1001,25 @@ table(y,resps)
 # y           TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD
 # TCGA-PRAD         0         0         0         0       498
 # TCGA-COAD         0       296         0         0         0
-# TCGA-LUAD         0         0       456         2         0
-# TCGA-LUSC         0         0         1       369         0
+# TCGA-LUAD         0         0       453         5         0
+# TCGA-LUSC         0         0        14       356         0
+# TCGA-BRCA       782         0         0         0         0
+#1se
+# resps
+# y           TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD
+# TCGA-PRAD         0         0         0         0       498
+# TCGA-COAD         0       296         0         0         0
+# TCGA-LUAD         0         0       452         6         0
+# TCGA-LUSC         0         0        20       350         0
 # TCGA-BRCA       782         0         0         0         0
 
-for (i in 1:length(Cancertypes))
-{
-  idx=which(y==Cancertypes[i])
-  print(paste0(Cancertypes[i],":"))
-  print(quantile(resprob[idx,i]))
-}
+
+# for (i in 1:length(Cancertypes))
+# {
+#   idx=which(y==Cancertypes[i])
+#   print(paste0(Cancertypes[i],":"))
+#   print(quantile(resprob[idx,i]))
+# }
 
 #Testing data----------
 #Hutch PRAD data
@@ -1034,8 +1028,8 @@ Hutch_PRAD=fread("/fh/fast/stanford_j/Illumina/Data_Cleaned/Clean_Methylation/be
 Hutch_PRAD=as.data.frame(Hutch_PRAD)
 rownames(Hutch_PRAD)=Hutch_PRAD[,1]
 Hutch_PRAD=Hutch_PRAD[,2:ncol(Hutch_PRAD)]
-sum(!colnames(TCGAtraindat) %in% rownames(Hutch_PRAD)) #29
-sum(!selectprobes1 %in% rownames(Hutch_PRAD)) #1
+sum(!colnames(TCGAtraindat) %in% rownames(Hutch_PRAD)) #23
+sum(!selectprobes1 %in% rownames(Hutch_PRAD)) #0
 #form x matrix used for glmnet prediction
 form_xpredict=function(dat1=TCGAtraindat,dat2=t(Hutch_PRAD),selectprobes=selectprobes1)
 {
@@ -1077,15 +1071,12 @@ predit_cancertype=function(allprobs=Hutch_PRAD_predictprob)
 }
 Hutch_PRAD_predictcancer=predit_cancertype()
 table(Hutch_PRAD_predictcancer$class)
-# Hutch_PRAD_predictcancer
-# TCGA-LUAD TCGA-PRAD 
-# 98       427 
-quantile(Hutch_PRAD_predictcancer$prob[Hutch_PRAD_predictcancer$res=="TCGA-LUAD"])
-# 0%       25%       50%       75%      100% 
-# 0.5009833 0.5837159 0.6945086 0.8258219 0.9828298 
-quantile(Hutch_PRAD_predictcancer$prob[Hutch_PRAD_predictcancer$res=="TCGA-PRAD"])
-# 0%       25%       50%       75%      100% 
-# 0.4357847 0.7148772 0.8108974 0.8978116 0.9835412 
+# TCGA-PRAD 
+# 525 
+#1se
+# TCGA-PRAD 
+# 525 
+
 png(paste0(resfolder,"Allcancers_HutchPRAD_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
 plot.pca(dat=t(rbind(TCGAtraindat,Hutch_PRAD_x)),types=c(as.character(tumortype),rep("Hutch_PRAD",nrow(Hutch_PRAD_x))),main="Glmnet selected probes",probes=selectprobes1)
@@ -1183,7 +1174,10 @@ knnclust=function(dat1=alldat$dat1,dat2=alldat$dat2,dat1_class=as.character(tumo
 Hutch_PRAD_predictcancer_knn=knnclust()
 table(Hutch_PRAD_predictcancer_knn$class)
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
-# 0         0       525         0         0 
+# 0         0         0         0       525
+#1se
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
+# 0         0         0         0       525 
 quantile(Hutch_PRAD_predictcancer_knn$prob)
 # 0%  25%  50%  75% 100% 
 # 0.6  1.0  1.0  1.0  1.0 
@@ -1199,8 +1193,11 @@ Grady_COAD_x=form_xpredict(dat2=t(Grady_COAD)) #0 probes not available
 Grady_COAD_predictprob=predict(cvfit, s=lambda.best,newx = Grady_COAD_x, type = "response")
 Grady_COAD_predictcancer=predit_cancertype(allprobs=Grady_COAD_predictprob)
 table(Grady_COAD_predictcancer$class)
-# TCGA-COAD TCGA-LUAD 
-# 41        23 
+# TCGA-BRCA TCGA-COAD TCGA-LUAD 
+# 2        57         5
+#1se
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC 
+# 1        58         3         2
 png(paste0(resfolder,"Allcancers_GradyCOAD_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
 plot.pca(dat=t(rbind(TCGAtraindat,Grady_COAD_x)),types=c(as.character(tumortype),rep("Grady_COAD",nrow(Grady_COAD_x))),main="Glmnet selected probes",probes=selectprobes1)
@@ -1224,7 +1221,10 @@ alldat=form_xpredict1(dat2=t(Grady_COAD))
 Grady_COAD_predictcancer_knn=knnclust()
 table(Grady_COAD_predictcancer_knn$class)
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
-# 0        60         3         1         0 
+# 1        59         3         1         0 
+#1se
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
+# 1        57         5         1         0
 
 #Try GEO BRCA
 GEO_BRCA=as.data.frame(fread("data/BRCA/GSE75067/GSE75067_series_matrix.txt",skip=58))
@@ -1235,6 +1235,9 @@ GEO_BRCA_x=form_xpredict(dat2=t(GEO_BRCA)) #0 probes not available
 GEO_BRCA_predictprob=predict(cvfit, s=lambda.best,newx = GEO_BRCA_x, type = "response")
 GEO_BRCA_predictcancer=predit_cancertype(allprobs=GEO_BRCA_predictprob)
 table(GEO_BRCA_predictcancer$class,useNA="ifany")
+# TCGA-BRCA  
+#188
+#1se
 # TCGA-BRCA  
 #188
 
@@ -1251,6 +1254,9 @@ dev.off()
 alldat=form_xpredict1(dat2=t(GEO_BRCA))
 GEO_BRCA_predictcancer_knn=knnclust()
 table(GEO_BRCA_predictcancer_knn$class)
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
+# 188         0         0         0         0 
+#1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
 # 188         0         0         0         0 
 
@@ -1270,7 +1276,10 @@ GEO_LUAD_predictprob=predict(cvfit, s=lambda.best,newx = GEO_LUAD_x, type = "res
 GEO_LUAD_predictcancer=predit_cancertype(allprobs=GEO_LUAD_predictprob)
 table(GEO_LUAD_predictcancer$class)
 # TCGA-COAD TCGA-LUAD TCGA-LUSC 
-# 1        49        33
+# 1        79         3 
+#1se
+# TCGA-COAD TCGA-LUAD TCGA-LUSC 
+# 1        79         3 
 
 png(paste0(resfolder,"Allcancers_GEOLUAD_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
@@ -1286,13 +1295,19 @@ alldat=form_xpredict1(dat2=t(GEO_LUAD))
 GEO_LUAD_predictcancer_knn=knnclust()
 table(GEO_LUAD_predictcancer_knn$class)
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
-# 0         1        79         3         0 
+# 0         0        80         3         0 
+#1se
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
+# 0         0        80         3         0 
 
 #LUSC
 GEO_LUSC_x=form_xpredict(dat2=t(GEO_LUSC)) #0 probes not available
 GEO_LUSC_predictprob=predict(cvfit, s=lambda.best,newx = GEO_LUSC_x, type = "response")
 GEO_LUSC_predictcancer=predit_cancertype(allprobs=GEO_LUSC_predictprob)
 table(GEO_LUSC_predictcancer$class)
+# TCGA-LUAD TCGA-LUSC 
+# 1        22 
+#1se
 # TCGA-LUAD TCGA-LUSC 
 # 1        22 
 png(paste0(resfolder,"Allcancers_GEOLUSC_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
@@ -1309,7 +1324,10 @@ alldat=form_xpredict1(dat2=t(GEO_LUSC))
 GEO_LUSC_predictcancer_knn=knnclust()
 table(GEO_LUSC_predictcancer_knn$class)
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
-# 0         0         1        22         0 
+# 0         0         3        20         0
+#1se
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-PRAD 
+# 0         0         3        20         0 
 
 #do heatmap on TCGA data
 library(ComplexHeatmap)
@@ -1360,6 +1378,6 @@ drawheatmap=function(mat=t(TCGAtraindat[,colnames(TCGAtraindat) %in% selectprobe
   ht_list = draw(ht_list, heatmap_legend_side = "right")
   return(ht_list)
 }
-png(paste0(resfolder,"Allcancers_Heatmap_cvfit10_nostand.png"),width = 800, height = 480,type = "cairo")
+png(paste0(resfolder,"Allcancers_Heatmap_cvfit_nostand.png"),width = 800, height = 480,type = "cairo")
 drawheatmap()
 dev.off()

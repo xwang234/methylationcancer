@@ -284,8 +284,8 @@ Sys.time()
 # plot(cvfit)
 # Sys.time()
 #dev.off()
-lambda.best=cvfit$lambda.min #196 probes,
-lambda.best=cvfit$lambda.1se #189 probes
+lambda.best=cvfit$lambda.min #196 probes, 184 overlap
+lambda.best=cvfit$lambda.1se #189 probes, 297
 glmcoeff1=coef(cvfit,s=lambda.best)[1]
 idx=glmcoeff1$`TCGA-NORM`@i
 #the selected probes
@@ -330,7 +330,7 @@ table(y,resps)
 # TCGA-BRCA       777         0         0         0         5         0
 # TCGA-NORM         7         0         0         0       240        11
 #1se
-resps
+# resps
 # y           TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD
 # TCGA-PRAD         0         0         0         0        10       488
 # TCGA-COAD         0       296         0         0         0         0
@@ -338,6 +338,15 @@ resps
 # TCGA-LUSC         0         0        16       352         2         0
 # TCGA-BRCA       776         0         0         0         6         0
 # TCGA-NORM         7         0         0         0       239        12
+#1se best
+# resps
+# y           TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD
+# TCGA-NORM         3         0         0         0       249         6
+# TCGA-PRAD         0         0         0         0         5       493
+# TCGA-COAD         0       296         0         0         0         0
+# TCGA-LUAD         0         0       454         3         1         0
+# TCGA-LUSC         0         0         2       366         2         0
+# TCGA-BRCA       778         0         0         0         4         0
 
 #Testing data----------
 #Hutch PRAD data
@@ -394,6 +403,9 @@ table(Hutch_PRAD_predictcancer$class)
 #1se
 # TCGA-NORM TCGA-PRAD 
 # 30       495
+#1se best
+# TCGA-NORM TCGA-PRAD 
+# 9       516 
 
 png(paste0(resfolder,"Allcancers_HutchPRAD_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
@@ -461,7 +473,9 @@ table(Hutch_PRAD_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 0         0         0         0        32       493 
-
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 0         0         0         0        36       489
 quantile(Hutch_PRAD_predictcancer_knn$prob)
 # 0%  25%  50%  75% 100% 
 # 0.6  1.0  1.0  1.0  1.0 
@@ -482,6 +496,9 @@ table(Hutch_PRAD_NORM_predictcancer$class)
 #1se
 # TCGA-NORM TCGA-PRAD 
 # 9        11 
+#1se best
+# TCGA-NORM TCGA-PRAD 
+# 1        19 
 
 png(paste0(resfolder,"All_HutchPRADNORM_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
@@ -496,6 +513,9 @@ table(Hutch_PRAD_NORM_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 0         0         1         0         7        12
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 0         0         1         0         8        11 
 
 #Try Hutch COAD
 load("/fh/fast/dai_j/CancerGenomics/Colorectal_Cancer/Data/GSE48684.RData")
@@ -514,6 +534,9 @@ table(Grady_COAD_predictcancer$class)
 #1se
 # TCGA-COAD TCGA-LUAD TCGA-NORM 
 # 54         2         8
+#1se best
+# TCGA-COAD TCGA-LUAD TCGA-NORM 
+# 54         2         8 
 
 png(paste0(resfolder,"Allcancers_GradyCOAD_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
@@ -542,6 +565,9 @@ table(Grady_COAD_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 0        54         2         0         8         0
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 0        55         1         0         8         0 
 
 # Hutch COAD NORMAL
 Grady_COAD_NORM_x=form_xpredict(dat2=t(Grady_COAD_NORM)) #0 probes not available
@@ -553,6 +579,9 @@ table(Grady_COAD_NORM_predictcancer$class)
 #1se
 # TCGA-NORM 
 # 17
+#1se best
+# TCGA-NORM 
+# 17
 alldat=form_xpredict1(dat2=t(Grady_COAD_NORM))
 Grady_COAD_NORM_predictcancer_knn=knnclust()
 table(Grady_COAD_NORM_predictcancer_knn$class)
@@ -561,8 +590,11 @@ table(Grady_COAD_NORM_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 0         0         0         0        17         0
-
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 0         0         0         0        17         0
 #Try GEO BRCA
+
 GEO_BRCA=as.data.frame(fread("data/BRCA/GSE75067/GSE75067_series_matrix.txt",skip=58))
 rownames(GEO_BRCA)=GEO_BRCA$ID_REF
 if ("ID_REF" %in% colnames(GEO_BRCA)) GEO_BRCA=GEO_BRCA[,-1]
@@ -576,7 +608,9 @@ table(GEO_BRCA_predictcancer$class,useNA="ifany")
 #1se
 # TCGA-BRCA TCGA-NORM 
 # 187         1 
-
+#1se best
+# TCGA-BRCA TCGA-NORM 
+# 186         2 
 png(paste0(resfolder,"Allcancers_GEOBRCA_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
 plot.pca(dat=t(rbind(TCGAtraindat,GEO_BRCA_x)),types=c(as.character(tumortype),rep("GEO_BRCA",nrow(GEO_BRCA_x))),main="Glmnet selected probes",probes=selectprobes1)
@@ -595,6 +629,9 @@ table(GEO_BRCA_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 183         0         0         0         5         0 
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 179         0         0         0         9         0 
 
 #Try lung cancers
 GEO_LUNG=as.data.frame(fread("data/LUNG/GSE56044/GSE56044_series_matrix.txt",skip=69))
@@ -617,6 +654,9 @@ table(GEO_LUAD_predictcancer$class)
 #1se
 # TCGA-LUAD TCGA-LUSC TCGA-NORM 
 # 80         2         1 
+#1se best
+# TCGA-LUAD TCGA-LUSC TCGA-NORM 
+# 80         2         1 
 
 png(paste0(resfolder,"Allcancers_GEOLUAD_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
@@ -636,6 +676,9 @@ table(GEO_LUAD_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 0         0        80         1         2         0 
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 0         0        79         2         2         0 
 
 #LUSC
 GEO_LUSC_x=form_xpredict(dat2=t(GEO_LUSC)) #0 probes not available
@@ -645,6 +688,9 @@ table(GEO_LUSC_predictcancer$class)
 # TCGA-LUAD TCGA-LUSC 
 # 1        22 
 #1se
+# TCGA-LUAD TCGA-LUSC 
+# 1        22 
+#1se best
 # TCGA-LUAD TCGA-LUSC 
 # 1        22 
 
@@ -666,6 +712,9 @@ table(GEO_LUSC_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 0         0         3        20         0         0 
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 0         0         3        20         0         0 
 
 #LUNG NORMAL
 GEO_LUNG_NORM_x=form_xpredict(dat2=t(GEO_LUNG_NORM)) #0 probes not available
@@ -677,7 +726,9 @@ table(GEO_LUNG_NORM_predictcancer$class)
 #1se
 # TCGA-NORM 
 # 12
-
+#1se best
+# TCGA-NORM 
+# 12 
 alldat=form_xpredict1(dat2=t(GEO_LUNG_NORM))
 GEO_LUNG_NORM_predictcancer_knn=knnclust()
 table(GEO_LUNG_NORM_predictcancer_knn$class)
@@ -686,7 +737,9 @@ table(GEO_LUNG_NORM_predictcancer_knn$class)
 #1se
 # TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
 # 0         0         0         0        12         0
-
+#1se best
+# TCGA-BRCA TCGA-COAD TCGA-LUAD TCGA-LUSC TCGA-NORM TCGA-PRAD 
+# 0         0         0         0        12         0
 #do heatmap on TCGA data
 library(ComplexHeatmap)
 library(GetoptLong)
