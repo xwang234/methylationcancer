@@ -9,6 +9,7 @@ Cancer.type="TCGA-LUAD"
 Cancer.type="TCGA-LUSC"
 Cancer.type="TCGA-BRCA"
 Cancer.type="Krause-EAC"
+Cancer.type="TCGA-LIHC"
 rm(tcga_normal_methy,tcga_tumor_methy,tcga_tumor_methy_all,output)
 
 
@@ -57,6 +58,7 @@ if (any(rownames(output)!=rownames(tcga_normal_methy)))
 
 #flter probes sd (c(cancer,normal))>0.03 for figures 1 and 2
 alldat=cbind.data.frame(tcga_normal_methy,tcga_tumor_methy_all)
+library(matrixStats)
 alldat.rowsd=rowSds(as.matrix(alldat),na.rm=T)
 quantile(alldat.rowsd)
 #Figure 1,volcanoplt,manually adjust ylim
@@ -76,7 +78,7 @@ png(paste0(resfolder,Cancer.type,"_volcanoplot.png"),width = 480, height = 480,t
 par(mar=c(6,6,2,1))
 #p-value came from DVC (fit1)
 plot(output1[,3]-output1[,1],-log(output1[,19],base=10),xlab="Difference of SD (beta)",ylab=expression('-log'[10]*' p-value for DVC'),
-     col=alpha(mycolors, 0.05),bty='l',cex.axis=1.4,cex.lab=1.4,ylim=c(0,45)) 
+     col=alpha(mycolors, 0.05),bty='l',cex.axis=1.4,cex.lab=1.4,ylim=c(0,50)) 
 dev.off()
 
 #Figure 2, Difference of mean vs Difference of SD, pick significant points,borders need to be removed.
@@ -178,11 +180,18 @@ if (Cancer.type=="TCGA-LUAD")
                  cex.axis=1.4,cex.lab=1.4,useRaster = TRUE,xaxs="i",yaxs="i") 
   dev.off()
 }
-
+if (Cancer.type=="TCGA-LIHC") #ylim
+{
+  png(paste0(resfolder,Cancer.type,"_DVC_mean_SD.png"),width = 480, height = 480,type = "cairo")
+  par(mar=c(6,6,2,1))
+  smoothScatter1(output1[idx,6]-output1[idx,4],output1[idx,3]-output1[idx,1],postPlotHook=NULL,
+                 xlab="Difference of mean beta",ylab="Difference of SD beta",
+                 cex.axis=1.4,cex.lab=1.4,useRaster = TRUE,xaxs="i",yaxs="i",ylim=c(0,0.45)) 
+  dev.off()
+}
 
 #Figure 3 boxplot
 ## now I want to find the probes with signficant DVC, but not signficant DMC, also with low methylation in normal
-library(matrixStats)
 
 dat.median=data.frame(tumor_median=rowMedians(as.matrix(tcga_tumor_methy_all),na.rm=T),normal_median=rowMedians(as.matrix(tcga_normal_methy),na.rm=T),
                       tumor15=rowQuantiles(as.matrix(tcga_tumor_methy_all),probs = 0.15,na.rm=T),normal85=rowQuantiles(as.matrix(tcga_normal_methy),probs = 0.85,na.rm=T))
@@ -212,6 +221,10 @@ sum(dat.median$normal_median<0.1)/nrow(output)
 # 0%          25%          50%          75%         100% 
 # 0.0001726538 0.0495650712 0.5048604375 0.8827488822 0.9897341674 
 #0.317174
+#LIHC
+# 0%         25%         50%         75%        100% 
+# 0.006878277 0.060714521 0.516979408 0.863027547 0.993677376 
+# 0.3130814
 clist <- which(output[,19]<0.05/nrow(output) & output[,18]>0.05/nrow(output) & dat.median$normal_median<0.1 & dat.median$tumor_median>dat.median$normal_median)
 
 sum(output[,19]<0.05/nrow(output) & output[,18]>0.05/nrow(output))
@@ -224,6 +237,8 @@ length(clist)
 #15606,954
 #BRCA
 #43508,1562
+#LIHC
+#62705,3642
 
 ## here I pick the one with largest AUC, ideally with similar AUC I want a low DVC p-value, a big DMC p-value to show testing for DVC is meaningful
 aucres=data.frame(i=clist,outauc= rep(0,length(clist)),p_dmc=NA,p_dvc=NA,med_norm=NA,med_tumor=NA,norm85=NA,tumor15=NA)
@@ -248,6 +263,7 @@ aucres$med_diff=aucres$med_tumor-aucres$med_norm
 # max(aucres$outauc)
 #pick different auc cutoff to pick probe
 aucres1=aucres[aucres$outauc>0.65,]
+aucres1=aucres[aucres$outauc>0.7,]
 idx1=order(aucres1$p_dmc,decreasing = T)
 #View(aucres1[idx1,])
 #plot(-log10(aucres1$p_dmc),-log10(aucres1$p_dvc),xlab="-log10 p-value (DMC)",ylab="-log10 p-value (DVC)",main="AUC>0.7")
@@ -515,6 +531,13 @@ plot_figure3_5(probeid = cpgs[2],xpos=0.35,ypos=0.5)
 plot_figure3_5(probeid = cpgs[3])
 plot_figure3_5(probeid = cpgs[4])
 
+#TCGA-LIHC
+cpgs=c("cg07345734","cg17641861","cg27487839")
+plot_figure3_5(probeid = cpgs[1])
+plot_figure3_5(probeid = cpgs[2])
+plot_figure3_5(probeid = cpgs[3])
+
+
 #generate new figures 11/30---
 
 png(paste0(resfolder,Cancer.type,"_DMVCvolcanoplot.png"),width = 480, height = 480,type = "cairo")
@@ -542,9 +565,6 @@ plot(output[idx,6]-output[idx,4],-log(output[idx,18],base=10),xlim=c(0,xmax),col
 points(output[idx1,6]-output[idx1,4],-log(output[idx1,18],base=10),col=alpha("black", 0.1))
 #title("Test for hypermethylation DMC")
 dev.off()
-
-
-
 
 
 
@@ -1343,10 +1363,11 @@ for (i in 1:length(uniq_cancertype))
 }
 listcolor_cancertype=list(Type=listcolor_cancertype)
 
+#method: It can be a pre-defined character which is in ("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski", "pearson", "spearman", "kendall").
 drawheatmap=function(mat=t(TCGAtraindat[,colnames(TCGAtraindat) %in% selectprobes1]), cluster=tumortype,
-                     showrowname=F)
+                     showrowname=F,cluster_col=F,includeha=T,method="euclidean")
 {
-  
+ 
   # mat=t(scale(t(mat)))
   # mat[mat < -2]=-2
   # mat[mat > 2]=2
@@ -1359,25 +1380,62 @@ drawheatmap=function(mat=t(TCGAtraindat[,colnames(TCGAtraindat) %in% selectprobe
                          # annotation_name_rot = c(0, 0),
                          annotation_name_side = "right")
   
+  if (includeha==T)
+  {
+    ht_list = Heatmap(mat, name = "Beta value",
+                      col = colorRamp2(c(0,0.5,1), c("white", "pink", "red")), 
+                      #column_dend_height = unit(4, "cm"),
+                      cluster_rows = T,
+                      clustering_distance_rows=method,
+                      clustering_distance_columns=method,
+                      cluster_columns=cluster_col,
+                      column_dend_reorder=F,
+                      #clustering_distance_columns="canberra",#kendall",
+                      row_names_gp=gpar(fontsize = 8, fontface = "bold"),
+                      column_dend_height=unit(2,"cm"),
+                      row_dend_width=unit(2,"cm"),
+                      top_annotation = c(ha),
+                      show_row_dend=T,
+                      show_heatmap_legend=T,
+                      heatmap_height=unit(12,"cm"),
+                      show_column_names = FALSE, show_row_names=showrowname) 
+  }else
+  {
+    ht_list = Heatmap(mat, name = "Beta value",
+                      col = colorRamp2(c(0,0.5,1), c("white", "pink", "red")), 
+                      #column_dend_height = unit(4, "cm"),
+                      cluster_rows = T,
+                      clustering_distance_rows=method,
+                      clustering_distance_columns=method,
+                      cluster_columns=cluster_col,
+                      column_dend_reorder=F,
+                      #clustering_distance_columns="canberra",#kendall",
+                      row_names_gp=gpar(fontsize = 8, fontface = "bold"),
+                      column_dend_height=unit(2,"cm"),
+                      row_dend_width=unit(2,"cm"),
+                      #top_annotation = c(ha),
+                      show_row_dend=T,
+                      show_heatmap_legend=T,
+                      heatmap_height=unit(12,"cm"),
+                      show_column_names = FALSE, show_row_names=showrowname) 
+  }
   
-  ht_list = Heatmap(mat, name = "Beta",
-                    col = colorRamp2(c(0,0.5,1), c("white", "pink", "red")), 
-                    #column_dend_height = unit(4, "cm"),
-                    cluster_rows = T,
-                    cluster_columns=F,
-                    column_dend_reorder=F,
-                    #clustering_distance_columns="canberra",#kendall",
-                    row_names_gp=gpar(fontsize = 8, fontface = "bold"),
-                    column_dend_height=unit(2,"cm"),
-                    row_dend_width=unit(2,"cm"),
-                    top_annotation = c(ha),
-                    show_row_dend=T,
-                    show_heatmap_legend=T,
-                    heatmap_height=unit(12,"cm"),
-                    show_column_names = FALSE, show_row_names=showrowname) 
   ht_list = draw(ht_list, heatmap_legend_side = "right")
   return(ht_list)
 }
 png(paste0(resfolder,"Allcancers_Heatmap_cvfit_nostand.png"),width = 800, height = 480,type = "cairo")
 drawheatmap()
 dev.off()
+#draw on each cancer
+method="spearman"
+method="pearson"
+for (i in 1:length(Cancertypes))
+{
+  probes=sigprobes[[i]]
+  mat=t(TCGAtraindat[tumortype==Cancertypes[i],colnames(TCGAtraindat) %in% probes])
+  #mat=mat[1:100,]
+  png(paste0(resfolder,Cancertypes[i],"_",method,"_Heatmap_sigprobe.png"),width = 800, height = 480,type = "cairo")
+  drawheatmap(mat=mat, cluster=as.character(tumortype[tumortype==Cancertypes[i]]),
+                       showrowname=F,cluster_col=T,includeha=F,method=method)
+  dev.off()
+}
