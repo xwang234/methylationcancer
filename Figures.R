@@ -61,7 +61,7 @@ alldat=cbind.data.frame(tcga_normal_methy,tcga_tumor_methy_all)
 library(matrixStats)
 alldat.rowsd=rowSds(as.matrix(alldat),na.rm=T)
 quantile(alldat.rowsd)
-#Figure 1,volcanoplt,manually adjust ylim
+#Figure 1,DVC volcanoplt,manually adjust ylim
 output1=output[alldat.rowsd>0.05,]
 idx=output1[,19]<0.05/nrow(output)
 mycolors=rep("black",nrow(output1))
@@ -573,7 +573,7 @@ resfolder="/fh/fast/dai_j/CancerGenomics/prostate_methylation/result/"
 #find significant probes in each cancer type
 #Cancertypes=c("TCGA-PRAD","TCGA-COAD","TCGA-LUAD","TCGA-LUSC","TCGA-BRCA","Krause-EAC")
 #remove EAC
-Cancertypes=c("TCGA-PRAD","TCGA-COAD","TCGA-LUAD","TCGA-LUSC","TCGA-BRCA")
+Cancertypes=c("TCGA-PRAD","TCGA-COAD","TCGA-LUAD","TCGA-LUSC","TCGA-BRCA","TCGA-LIHC")
 #a list to keep all sig probes
 sigprobes=NULL
 for (i in 1:length(Cancertypes))
@@ -684,6 +684,16 @@ alltumor=alltumor[-idx,]
 sum(comprobes %in% rownames(alltumor)) #32788
 tumortype0=tumortype
 tumortype=factor(tumortype,levels = Cancertypes)
+
+alltype=c(as.character(tumortype),rep("TCGA-NORM",ncol(allnormal)))
+alltype=factor(alltype,levels=c("TCGA-NORM",Cancertypes))
+idx=match(rownames(alltumor),rownames(allnormal))
+allTCGAdat=cbind(alltumor,allnormal[idx,])
+tmp=rowMeans(allTCGAdat)
+idx=which(is.na(tmp))
+length(idx) #9552, remove probes with missing values (some may correlated to specific cancer)
+allTCGAdat=allTCGAdat[-idx,]
+
 allcolors=c("red","blue","darkorchid1","limegreen","goldenrod1","black","brown4","darkseagreen","darkseagreen1")
 #allcolors=c("red","blue","darkorchid1","limegreen","black","darkcyan","goldenrod1","darkseagreen","darkseagreen1")
 plot.pca=function(dat=allTCGAdat,probes=comprobes,types=alltype,yinc=1.2,pc1=1,pc2=2,main="",prefix=NULL,opt="beta")
@@ -989,11 +999,11 @@ selectprobes5=glmcoeff5$`TCGA-BRCA`@Dimnames[[1]][idx+1]
 selectprobes5=selectprobes5[selectprobes5!="(Intercept)"]
 all(selectprobes1==selectprobes5) #T used to verify
 length(selectprobes1)
-png(paste0(resfolder,"Allcancers_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
+png(paste0(resfolder,"All6cancers_glmprobes_PCA_PC1_PC2.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
 plot.pca(main="Glmnet selected probes",probes=selectprobes1)
 dev.off()
-png(paste0(resfolder,"Allcancers_glmprobes_PCA_PC1_PC3.png"),width = 480, height = 480,type = "cairo")
+png(paste0(resfolder,"All6cancers_glmprobes_PCA_PC1_PC3.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
 plot.pca(main="Glmnet selected probes",probes=selectprobes1,pc1=1,pc2=3)
 dev.off()
@@ -1001,7 +1011,7 @@ png(paste0(resfolder,"Allcancers_glmprobes_PCA_PC2_PC3.png"),width = 480, height
 par(mar=c(6,6,2,1))
 plot.pca(main="Glmnet selected probes",probes=selectprobes1,pc1=2,pc2=3)
 dev.off()
-png(paste0(resfolder,"Allcancers_glmprobes_TSNE.png"),width = 480, height = 480,type = "cairo")
+png(paste0(resfolder,"All6cancers_glmprobes_TSNE.png"),width = 480, height = 480,type = "cairo")
 par(mar=c(6,6,2,1))
 plot.tsne(main="Glmnet selected probes",probes=selectprobes1)
 dev.off()
@@ -1364,6 +1374,15 @@ for (i in 1:length(uniq_cancertype))
 listcolor_cancertype=list(Type=listcolor_cancertype)
 
 #method: It can be a pre-defined character which is in ("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski", "pearson", "spearman", "kendall").
+#load cvfit
+load("result/cvfit6cancers_all.RData")
+lambda.best=cvfit$lambda.min #211
+library(glmnet)
+glmcoeff1=coef(cvfit,s=lambda.best)[1]
+idx=glmcoeff1$`TCGA-NORM`@i
+#the selected probes
+selectprobes1=glmcoeff1$`TCGA-NORM`@Dimnames[[1]][idx+1]
+selectprobes1=selectprobes1[selectprobes1!="(Intercept)"]
 drawheatmap=function(mat=t(TCGAtraindat[,colnames(TCGAtraindat) %in% selectprobes1]), cluster=tumortype,
                      showrowname=F,cluster_col=F,includeha=T,method="euclidean")
 {
@@ -1423,13 +1442,18 @@ drawheatmap=function(mat=t(TCGAtraindat[,colnames(TCGAtraindat) %in% selectprobe
   ht_list = draw(ht_list, heatmap_legend_side = "right")
   return(ht_list)
 }
-png(paste0(resfolder,"Allcancers_Heatmap_cvfit_nostand.png"),width = 800, height = 480,type = "cairo")
+png(paste0(resfolder,"All6cancers_Heatmap_cvfit_nostand.png"),width = 800, height = 480,type = "cairo")
 drawheatmap()
 dev.off()
+
+
+
+
+
 #draw on each cancer
 method="spearman"
 method="pearson"
-for (i in 1:length(Cancertypes))
+for (i in 6:length(Cancertypes))
 {
   probes=sigprobes[[i]]
   mat=t(TCGAtraindat[tumortype==Cancertypes[i],colnames(TCGAtraindat) %in% probes])
@@ -1437,5 +1461,16 @@ for (i in 1:length(Cancertypes))
   png(paste0(resfolder,Cancertypes[i],"_",method,"_Heatmap_sigprobe.png"),width = 800, height = 480,type = "cairo")
   drawheatmap(mat=mat, cluster=as.character(tumortype[tumortype==Cancertypes[i]]),
                        showrowname=F,cluster_col=T,includeha=F,method=method)
+  dev.off()
+}
+#Euclidean
+for (i in 6:length(Cancertypes))
+{
+  probes=sigprobes[[i]]
+  mat=t(TCGAtraindat[tumortype==Cancertypes[i],colnames(TCGAtraindat) %in% probes])
+  #mat=mat[1:100,]
+  png(paste0(resfolder,Cancertypes[i],"_Heatmap_sigprobe.png"),width = 800, height = 480,type = "cairo")
+  drawheatmap(mat=mat, cluster=as.character(tumortype[tumortype==Cancertypes[i]]),
+              showrowname=F,cluster_col=T,includeha=F)
   dev.off()
 }
